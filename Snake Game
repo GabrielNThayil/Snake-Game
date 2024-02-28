@@ -1,0 +1,141 @@
+from tkinter import *
+import random
+
+# Constants
+SCREEN_WIDTH = 700
+SCREEN_HEIGHT = 600
+SPEED = 100
+SPACE_SIZE = 50
+SNAKE_PARTS = 3
+SNAKE_COLOR = "#00FF00"
+FOOD_COLOR = "#FF0000"
+BACKGROUND_COLOR = "#000000"
+
+class Game:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("Snake Game")
+        self.master.resizable(False, False)
+        self.score = 0
+        self.direction = 'down'
+
+        self.label = Label(self.master, text="Score:{}".format(self.score), font=('consolas', 40))
+        self.label.pack()
+
+        self.canvas = Canvas(self.master, bg=BACKGROUND_COLOR, height=SCREEN_HEIGHT, width=SCREEN_WIDTH)
+        self.canvas.pack()
+
+        self.snake = Snake(self.canvas)
+        self.food = Food(self.canvas, self.snake)
+
+        self.master.bind('<Left>', lambda event: self.change_direction('left'))
+        self.master.bind('<Right>', lambda event: self.change_direction('right'))
+        self.master.bind('<Up>', lambda event: self.change_direction('up'))
+        self.master.bind('<Down>', lambda event: self.change_direction('down'))
+
+        self.next_turn()
+
+    def next_turn(self):
+        self.snake.move(self.direction, self.food)
+        if not self.snake.check_collisions():
+            self.master.after(SPEED, self.next_turn)
+        else:
+            self.game_over()
+
+    def change_direction(self, new_direction):
+        if new_direction == 'left' and self.direction != 'right':
+            self.direction = new_direction
+        elif new_direction == 'right' and self.direction != 'left':
+            self.direction = new_direction
+        elif new_direction == 'up' and self.direction != 'down':
+            self.direction = new_direction
+        elif new_direction == 'down' and self.direction != 'up':
+            self.direction = new_direction
+
+    def game_over(self):
+        self.canvas.delete(ALL)
+        self.canvas.create_text(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2,
+                                font=('consolas', 70), text="GAME OVER", fill="red")
+        self.canvas.create_text(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100,
+                                font=('consolas', 40), text="Score: {}".format(self.score), fill="white")
+
+        # Add Retry Button
+        retry_button = Button(self.master, text="Retry", font=('consolas', 20), command=self.restart_game)
+        retry_button.pack()
+
+    def restart_game(self):
+        self.score = 0
+        self.label.config(text="Score:{}".format(self.score))
+        self.canvas.delete(ALL)
+        self.snake = Snake(self.canvas)
+        self.food = Food(self.canvas, self.snake)
+        self.direction = 'down'
+        self.next_turn()
+
+class Snake:
+    def __init__(self, canvas):
+        self.canvas = canvas
+        self.body_size = SNAKE_PARTS
+        self.coordinates = []
+        self.squares = []
+
+        for i in range(0, SNAKE_PARTS):
+            self.coordinates.append([0, 0])
+
+        for x, y in self.coordinates:
+            square = self.canvas.create_rectangle(x, y, x + SPACE_SIZE, y + SPACE_SIZE, fill=SNAKE_COLOR, tag="snake")
+            self.squares.append(square)
+
+    def move(self, direction, food):
+        x, y = self.coordinates[0]
+
+        if direction == "up":
+            y -= SPACE_SIZE
+        elif direction == "down":
+            y += SPACE_SIZE
+        elif direction == "left":
+            x -= SPACE_SIZE
+        elif direction == "right":
+            x += SPACE_SIZE
+
+        self.coordinates.insert(0, (x, y))
+
+        if x == food.coordinates[0] and y == food.coordinates[1]:
+            self.eat(food)
+        else:
+            del self.coordinates[-1]
+            self.canvas.delete(self.squares[-1])
+            del self.squares[-1]
+
+        self.squares.insert(0, self.canvas.create_rectangle(x, y, x + SPACE_SIZE, y + SPACE_SIZE, fill=SNAKE_COLOR))
+
+    def eat(self, food):
+        food.move()
+        self.body_size += 1
+
+    def check_collisions(self):
+        x, y = self.coordinates[0]
+        if x < 0 or x >= SCREEN_WIDTH or y < 0 or y >= SCREEN_HEIGHT:
+            return True
+        for body_part in self.coordinates[1:]:
+            if x == body_part[0] and y == body_part[1]:
+                return True
+        return False
+
+class Food:
+    def __init__(self, canvas, snake):
+        self.canvas = canvas
+        self.snake = snake
+        self.move()
+
+    def move(self):
+        x = random.randint(0, (SCREEN_WIDTH / SPACE_SIZE) - 1) * SPACE_SIZE
+        y = random.randint(0, (SCREEN_HEIGHT / SPACE_SIZE) - 1) * SPACE_SIZE
+        self.coordinates = [x, y]
+        self.canvas.delete("food")
+        self.canvas.create_oval(x, y, x + SPACE_SIZE, y + SPACE_SIZE, fill=FOOD_COLOR, tag="food")
+
+if __name__ == "__main__":
+    root = Tk()
+    game = Game(root)
+    root.mainloop()
